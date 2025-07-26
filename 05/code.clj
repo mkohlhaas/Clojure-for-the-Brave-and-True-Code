@@ -1,12 +1,13 @@
-(+ 1 2)
-; => 3
+(ns code
+  (:require [clojure.string :as str]))
+
+(+ 1 2) ; 3
 
 (defn wisdom
   [words]
   (str words ", Daniel-san"))
 
-(wisdom "Always bathe on Fridays")
-; => "Always bathe on Fridays, Daniel-san"
+(wisdom "Always bathe on Fridays") ; "Always bathe on Fridays, Daniel-san"
 
 (defn year-end-evaluation
   []
@@ -14,185 +15,111 @@
     "You get a raise!"
     "Better luck next year!"))
 
-(defn analyze-file
-  [filename]
-  (analysis (slurp filename)))
+(year-end-evaluation) ; "You get a raise!"
 
 (defn analysis
   [text]
   (str "Character count: " (count text)))
 
+(analysis "This is just a dummy text.") ; "Character count: 26"
+
+(defn analyze-file
+  [filename]
+  (analysis (slurp filename)))
+
+(analyze-file "code.clj")  ; "Character count: 2713"
+
 (def great-baby-name "Rosanthony")
-great-baby-name
-; => "Rosanthony"
+
+great-baby-name ; "Rosanthony"
 
 (let [great-baby-name "Bloodthunder"]
-  great-baby-name)
-; => "Bloodthunder"
+  great-baby-name)  ; "Bloodthunder"
 
-great-baby-name
-; => "Rosanthony"
+great-baby-name ; "Rosanthony"
 
 (defn sum
-  ([vals] (sum vals 0)) 
+  ([vals] (sum vals 0))
   ([vals accumulating-total]
-   (if (empty? vals)  
+   (if (empty? vals)
      accumulating-total
      (sum (rest vals) (+ (first vals) accumulating-total)))))
 
-(sum [39 5 1]) ; single-arity body calls two-arity body
-(sum [39 5 1] 0)
-(sum [5 1] 39)
-(sum [1] 44)
-(sum [] 45) ; base case is reached, so return accumulating-total
-; => 45
+;; how it runs
+(sum [39 5 1])   ; 45
+(sum [39 5 1] 0) ; 45
+(sum [5 1] 39)   ; 45
+(sum [1] 44)     ; 45
+(sum [] 45)      ; 45
 
-(defn sum
-  ([vals]
-   (sum vals 0))
+;; using recur (s/sum/recur/)
+(defn sum1
+  ([vals] (sum1 vals 0))
   ([vals accumulating-total]
    (if (empty? vals)
      accumulating-total
      (recur (rest vals) (+ (first vals) accumulating-total)))))
 
+(sum1 [39 5 1]) ; 45
 
-(require '[clojure.string :as s])
 (defn clean
   [text]
-  (s/replace (s/trim text) #"lol" "LOL"))
+  (str/replace (str/trim text) #"lol" "LOL"))
 
-(clean "My boa constrictor is so sassy lol!  ")
-; => "My boa constrictor is so sassy LOL!"
+(clean "My boa constrictor is so sassy lol!  ") ; "My boa constrictor is so sassy LOL!"
 
-((comp inc *) 2 3)
-; => 7
+;; composing functions (right to left)
+((comp inc *) 2 3) ; 7
+;; 2 * 3 = 6
+;; 6 + 1 = 7
 
 (def character
   {:name "Smooches McCutes"
    :attributes {:intelligence 10
-                :strength 4
-                :dexterity 5}})
-(def c-int (comp :intelligence :attributes))
-(def c-str (comp :strength :attributes))
-(def c-dex (comp :dexterity :attributes))
+                :strength     4
+                :dexterity    5}})
 
-(c-int character)
-; => 10
+(def c-intelligence (comp :intelligence :attributes))
+(def c-strength     (comp :strength     :attributes))
+(def c-dexterity    (comp :dexterity    :attributes))
 
-(c-str character)
-; => 4
+(c-intelligence character) ; 10
+(c-strength     character) ; 4
+(c-dexterity    character) ; 5
 
-(c-dex character)
-; => 5
-
-
+;; the same
 (fn [c] (:strength (:attributes c)))
 
 (defn spell-slots
   [char]
-  (int (inc (/ (c-int char) 2))))
+  (int (inc (/ (c-intelligence char) 2))))
 
-(spell-slots character)
-; => 6
+(spell-slots character) ; 6
 
-(def spell-slots-comp (comp int inc #(/ % 2) c-int))
+;; the same (with `comp`)
+(def spell-slots-comp (comp int inc #(/ % 2) c-intelligence))
 
+;; composition of two functions
 (defn two-comp
   [f g]
   (fn [& args]
     (f (apply g args))))
 
-(+ 3 (+ 5 8))
+;; (+ 3 (+ 5 8))
+;; (+ 3 13)
+;; 16
 
-(+ 3 13)
-
-16
-
-(defn sleepy-identity
+(defn slow-identity
   "Returns the given value after 1 second"
   [x]
   (Thread/sleep 1000)
   x)
 
-(sleepy-identity "Mr. Fantastico")
-; => "Mr. Fantastico" after 1 second
+(slow-identity "Mr. Fantastico") ; "Mr. Fantastico"
+(slow-identity "Mr. Fantastico") ; "Mr. Fantastico"
 
-(sleepy-identity "Mr. Fantastico")
-; => "Mr. Fantastico" after 1 second
+;; remember calculated values
+(def memo-sleepy-identity (memoize slow-identity))
 
-
-(def memo-sleepy-identity (memoize sleepy-identity))
-(memo-sleepy-identity "Mr. Fantastico")
-; => "Mr. Fantastico" after 1 second
-
-(memo-sleepy-identity "Mr. Fantastico")
-; => "Mr. Fantastico" immediately
-
-
-;; Peg Thing examples
-
-(take 5 tri)
-; => (1 3 6 10 15)
-
-(triangular? 5) 
-; => false
-
-(triangular? 6) 
-; => true
-
-(row-tri 1) 
-; => 1
-
-(row-tri 2) 
-; => 3
-
-(row-tri 3) 
-; => 6
-
-(row-num 1) 
-; => 1
-(row-num 5) 
-; => 3
-
-
-(connect {} 15 1 2 4)
-; => {1 {:connections {4 2}}
-; =>  4 {:connections {1 2}}}
-
-(assoc-in {} [:cookie :monster :vocals] "Finntroll")
-; => {:cookie {:monster {:vocals "Finntroll"}}}
-
-(get-in {:cookie {:monster {:vocals "Finntroll"}}} [:cookie :monster])
-; => {:vocals "Finntroll"}
-
-(assoc-in {} [1 :connections 4] 2)
-; => {1 {:connections {4 2}}}
-
-(connect-down-left {} 15 1)
-; => {1 {:connections {4 2}
-; =>  4 {:connections {1 2}}}}
-
-(connect-down-right {} 15 3)
-; => {3  {:connections {10 6}}
-; =>  10 {:connections {3 6}}}
-
-(add-pos {} 15 1)
-{1 {:connections {6 3, 4 2}, :pegged true}
- 4 {:connections {1 2}}
- 6 {:connections {1 3}}}
-
-(valid-moves my-board 1)  ; => {4 2}
-(valid-moves my-board 6)  ; => {4 5}
-(valid-moves my-board 11) ; => {4 7}
-(valid-moves my-board 5)  ; => {}
-(valid-moves my-board 8)  ; => {}
-
-
-(valid-move? my-board 8 4) ; => nil
-(valid-move? my-board 1 4) ; => 2
-
-(characters-as-strings "a   b")
-; => ("a" "b")
-
-(characters-as-strings "a   cb")
-; => ("a" "c" "b")
+(memo-sleepy-identity "Mr. Fantastico") ; "Mr. Fantastico"
+(memo-sleepy-identity "Mr. Fantastico") ; "Mr. Fantastico"
