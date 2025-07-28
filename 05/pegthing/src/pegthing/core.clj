@@ -28,8 +28,8 @@
   (last (take n tri)))
 
 (defn row-num
-  "Returns row number the position belongs to: pos 1 in row 1,
-  positions 2 and 3 in row 2, etc"
+  "Returns row number the position belongs to:
+   pos 1 in row 1, positions 2 and 3 in row 2, etc"
   [pos]
   (inc (count (take-while #(> pos %) tri))))
 
@@ -85,8 +85,6 @@
             initial-board
             (range 1 (inc max-pos)))))
 
-(def my-board (assoc-in (new-board 5) [4 :pegged] false))
-
 ;; ;;;;;;;;;
 ;; Move pegs
 ;; ;;;;;;;;;
@@ -98,7 +96,7 @@
 
 (defn valid-moves
   "Return a map of all valid moves for pos, where the key is the
-  destination and the value is the jumped position"
+   destination and the value is the jumped position"
   [board pos]
   (into {}
         (filter (fn [[destination jumped]]
@@ -107,8 +105,7 @@
                 (get-in board [pos :connections]))))
 
 (defn valid-move?
-  "Return jumped position if the move from p1 to p2 is valid, nil
-  otherwise"
+  "Return jumped position if the move from p1 to p2 is valid, nil otherwise"
   [board p1 p2]
   (get (valid-moves board p1) p2))
 
@@ -137,16 +134,11 @@
   "Do any of the pegged positions have valid moves?"
   [board]
   (some (comp not-empty (partial valid-moves board))
-        (map first (filter #(get (second %) :pegged) board))))
+        (map first (filter #(get (second %) :pegged) board)))) ;; pegged positions
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Represent board textually and print it
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(def alpha-start 97)
-(def alpha-end 123)
-(def letters (map (comp str char) (range alpha-start alpha-end)))
-(def pos-chars 3)
 
 (def ansi-styles
   {:red   "[31m"
@@ -164,12 +156,15 @@
   [text color]
   (str (ansi color) text (ansi :reset)))
 
+(def alpha-start 97)
+
 (defn render-pos
   [board pos]
-  (str (nth letters (dec pos))
-       (if (get-in board [pos :pegged])
-         (colorize "0" :blue)
-         (colorize "-" :red))))
+  (let [letters (map (comp str char) (range alpha-start (+ alpha-start 26)))] ; ("a" "b" ... "x" "y" "z")
+    (str (nth letters (dec pos))
+         (if (get-in board [pos :pegged])
+           (colorize "0" :blue)
+           (colorize "-" :red)))))
 
 (defn row-positions
   "Return all positions in the given row"
@@ -180,7 +175,8 @@
 (defn row-padding
   "String of spaces to add to the beginning of a row to center it"
   [row-num rows]
-  (let [pad-length (/ (* (- rows row-num) pos-chars) 2)]
+  (let [pos-chars 3
+        pad-length (/ (* (- rows row-num) pos-chars) 2)]
     (apply str (take pad-length (repeat " ")))))
 
 (defn render-row
@@ -212,8 +208,7 @@
        (str/lower-case input)))))
 
 (defn characters-as-strings
-  "Given a string, return a collection consisting of each individual
-  character"
+  "Given a string, return a collection consisting of each individual character"
   [string]
   (re-seq #"[a-zA-Z]" string))
 
@@ -278,38 +273,191 @@
 (triangular? 6) ; true
 
 (row-tri 1) ; 1
-
 (row-tri 2) ; 3
 (row-tri 3) ; 6
+(row-tri 4) ; 10
+(row-tri 5) ; 15
 
-(row-num 1) ; 1
-(row-num 5) ; 3
+(row-num 1)  ; 1
+(row-num 2)  ; 2
+(row-num 3)  ; 2
+(row-num 4)  ; 3
+(row-num 5)  ; 3
+(row-num 6)  ; 3
+(row-num 7)  ; 4
+(row-num 8)  ; 4
+(row-num 9)  ; 4
+(row-num 10) ; 4
+(row-num 12) ; 5
+(row-num 13) ; 5
+(row-num 14) ; 5
+(row-num 15) ; 5
 
 (connect {} 15 1 2 4) ; {1 {:connections {4 2}}, 4 {:connections {1 2}}}
 
 (assoc-in {} [:cookie :monster :vocals] "Finntroll") ; {:cookie {:monster {:vocals "Finntroll"}}}
+(assoc-in {} [1 :connections 4] 2)                   ; {1 {:connections {4 2}}}
+(assoc-in {} [1 3 :connections 4] 2)                 ; {1 {3 {:connections {4 2}}}}
+(assoc-in {} [1 "three" :connections 4] 2)           ; {1 {"three" {:connections {4 2}}}}
 
-(get-in {:cookie {:monster {:vocals "Finntroll"}}} [:cookie :monster]) ; {:vocals "Finntroll"}
+(assoc-in {} [:cookie  :monster  :vocals] "Finntroll")                       ; {:cookie {:monster {:vocals "Finntroll"}}}
+(get-in      {:cookie {:monster {:vocals  "Finntroll"}}} [:cookie :monster]) ; {:vocals "Finntroll"}
 
-(assoc-in {} [1 :connections 4] 2) ; {1 {:connections {4 2}}}
-
-(connect-down-left {} 15 1) ; {1 {:connections {4 2}}, 4 {:connections {1 2}}}
+(connect-down-left {} 15 1)  ; {1 {:connections {4 2}}, 4 {:connections {1 2}}}
+(connect-down-left {} 15 6)  ; {6 {:connections {13 9}}, 13 {:connections {6 9}}}
 
 (connect-down-right {} 15 3) ; {3 {:connections {10 6}}, 10 {:connections {3 6}}}
+(connect-down-right {} 15 6) ; {6 {:connections {15 10}}, 15 {:connections {6 10}}}
 
 (add-pos {} 15 1)
 ; {1 {:pegged true, :connections {4 2, 6 3}},
 ;  4 {:connections {1 2}},
 ;  6 {:connections {1 3}}}
+(add-pos (add-pos {} 15 1) 15 2)
+; {1 {:pegged true, :connections {4 2, 6 3}},
+;  4 {:connections {1 2}},
+;  6 {:connections {1 3}},
+;  2 {:pegged true, :connections {7 4, 9 5}},
+;  7 {:connections {2 4}},
+;  9 {:connections {2 5}}}
+(add-pos (add-pos (add-pos {} 15 1) 15 2) 15 3)
+; {7 {:connections {2 4}},
+;  1 {:pegged true, :connections {4 2, 6 3}},
+;  4 {:connections {1 2}},
+;  6 {:connections {1 3}},
+;  3 {:pegged true, :connections {8 5, 10 6}},
+;  2 {:pegged true, :connections {7 4, 9 5}},
+;  9 {:connections {2 5}},
+;  10 {:connections {3 6}},
+;  8 {:connections {3 5}}}
+(add-pos (add-pos (add-pos (add-pos {} 15 1) 15 2) 15 3) 15 4)
+; {7 {:connections {2 4}},
+;  1 {:pegged true, :connections {4 2, 6 3}},
+;  4 {:connections {1 2, 6 5, 11 7, 13 8}, :pegged true},   ;; this entry is just overwritten!
+;  13 {:connections {4 8}},
+;  6 {:connections {1 3, 4 5}},
+;  3 {:pegged true, :connections {8 5, 10 6}},
+;  2 {:pegged true, :connections {7 4, 9 5}},
+;  11 {:connections {4 7}},
+;  9 {:connections {2 5}},
+;  10 {:connections {3 6}},
+;  8 {:connections {3 5}}}
+
+(new-board 5)
+;  {1  {:pegged true, :connections {6 3, 4 2}},
+;   2  {:pegged true, :connections {9 5, 7 4}},
+;   3  {:pegged true, :connections {10 6, 8 5}},
+;   4  {:pegged true, :connections {13 8, 11 7, 6 5, 1 2}},
+;   5  {:pegged true, :connections {14 9, 12 8}},
+;   6  {:pegged true, :connections {15 10, 13 9, 4 5, 1 3}},
+;   7  {:pegged true, :connections {9 8, 2 4}},
+;   8  {:pegged true, :connections {10 9, 3 5}},
+;   9  {:pegged true, :connections {7 8, 2 5}},
+;   10 {:pegged true, :connections {8 9, 3 6}},
+;   11 {:pegged true, :connections {13 12, 4 7}},
+;   12 {:pegged true, :connections {14 13, 5 8}},
+;   13 {:pegged true, :connections {15 14, 11 12, 6 9, 4 8}},
+;   14 {:pegged true, :connections {12 13, 5 9}},
+;   15 {:pegged true, :connections {13 14, 6 10}},
+;   :rows 5)
+
+(def my-board (assoc-in (new-board 5) [4 :pegged] false))
+(print-board my-board) ; nil
+; (out)       a0
+; (out)      b0 c0
+; (out)    d- e0 f0
+; (out)   g0 h0 i0 j0
+; (out) k0 l0 m0 n0 o0
 
 (valid-moves my-board 1)  ; {4 2}
-(valid-moves my-board 6)  ; {4 5}
-(valid-moves my-board 11) ; {4 7}
+(valid-moves my-board 2)  ; {}
+(valid-moves my-board 3)  ; {}
+(valid-moves my-board 4)  ; {}
 (valid-moves my-board 5)  ; {}
+(valid-moves my-board 6)  ; {4 5}
+(valid-moves my-board 7)  ; {}
 (valid-moves my-board 8)  ; {}
+(valid-moves my-board 9)  ; {}
+(valid-moves my-board 10) ; {}
+(valid-moves my-board 11) ; {4 7}
+(valid-moves my-board 12) ; {}
+(valid-moves my-board 13) ; {4 8}
+(valid-moves my-board 14) ; {}
+(valid-moves my-board 15) ; {}
 
-(valid-move? my-board 8 4) ; nil
 (valid-move? my-board 1 4) ; 2
+(valid-move? my-board 2 4) ; nil
+(valid-move? my-board 6 4) ; 5
 
-(characters-as-strings "a   b")  ; ("a" "b")
-(characters-as-strings "a   cb") ; ("a" "c" "b")
+(remove-peg (new-board 5) 5)
+; {:rows 5,
+;  1 {:pegged true, :connections {4 2, 6 3}},
+;  2 {:pegged true, :connections {7 4, 9 5}},
+;  3 {:pegged true, :connections {8 5, 10 6}},
+;  4 {:connections {1 2, 6 5, 11 7, 13 8}, :pegged true},
+;  5 {:pegged false, :connections {12 8, 14 9}},             ;; peg removed
+;  6 {:connections {1 3, 4 5, 13 9, 15 10}, :pegged true},
+;  7 {:connections {2 4, 9 8}, :pegged true},
+;  8 {:connections {3 5, 10 9}, :pegged true}}
+;  9 {:connections {2 5, 7 8}, :pegged true},
+;  10 {:connections {3 6, 8 9}, :pegged true},
+;  11 {:connections {4 7, 13 12}, :pegged true},
+;  12 {:connections {5 8, 14 13}, :pegged true},
+;  13 {:connections {4 8, 6 9, 11 12, 15 14}, :pegged true},
+;  14 {:connections {5 9, 12 13}, :pegged true},
+;  15 {:connections {6 10, 13 14}, :pegged true},
+
+(row-positions 1) ; (1)
+(row-positions 2) ; (2 3)
+(row-positions 3) ; (4 5 6)
+(row-positions 4) ; (7 8 9 10)
+(row-positions 5) ; (11 12 13 14 15)
+
+(render-row my-board 1) ; "      a[34m0[0m"
+(render-row my-board 2) ; "     b[34m0[0m c[34m0[0m"
+(render-row my-board 3) ; "   d[31m-[0m e[34m0[0m f[34m0[0m"
+(render-row my-board 4) ; "  g[34m0[0m h[34m0[0m i[34m0[0m j[34m0[0m"
+(render-row my-board 5) ; "k[34m0[0m l[34m0[0m m[34m0[0m n[34m0[0m o[34m0[0m"
+
+(print-board my-board)
+; (out)       a0
+; (out)      b0 c0
+; (out)    d- e0 f0
+; (out)   g0 h0 i0 j0
+; (out) k0 l0 m0 n0 o0
+
+;; valid move
+(make-move my-board 6 4)
+; {:rows 5,
+;  1 {:pegged true, :connections {4 2, 6 3},
+;  2 {:pegged true, :connections {7 4, 9 5}},
+;  3 {:pegged true, :connections {8 5, 10 6}},
+;  4 {:connections {1 2, 6 5, 11 7, 13 8}, :pegged true},
+;  5 {:pegged false, :connections {12 8, 14 9}},
+;  6 {:connections {1 3, 4 5, 13 9, 15 10}, :pegged false},
+;  7 {:connections {2 4, 9 8}, :pegged true}}
+;  8 {:connections {3 5, 10 9}, :pegged true}}
+;  9 {:connections {2 5, 7 8}, :pegged true},
+;  10 {:connections {3 6, 8 9}, :pegged true},
+;  11 {:connections {4 7, 13 12}, :pegged true},
+;  12 {:connections {5 8, 14 13}, :pegged true},
+;  13 {:connections {4 8, 6 9, 11 12, 15 14}, :pegged true},
+;  14 {:connections {5 9, 12 13}, :pegged true},
+;  15 {:connections {6 10, 13 14}, :pegged true},
+
+;; invalid move
+(make-move my-board 6 5) ; nil
+
+(can-move? my-board) ; {4 2}
+(can-move? nil)      ; nil
+
+(count (filter :pegged (vals my-board))) ; 14
+
+(letter->pos "a")  ; 1
+(letter->pos "z")  ; 26
+(letter->pos "a-") ; 1
+(letter->pos "z0") ; 26
+
+(characters-as-strings "a   b")       ; ("a" "b")
+(characters-as-strings "a   bc")      ; ("a" "b" "c")
+(characters-as-strings "a   b  c  ")  ; ("a" "b" "c")
