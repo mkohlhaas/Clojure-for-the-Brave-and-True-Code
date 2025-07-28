@@ -37,7 +37,7 @@
        contents))
 
 (defn -main
-  [& args]
+  [& _args]
   (let [filename "map.html"]
     (->> heists
          (xml 50 100)
