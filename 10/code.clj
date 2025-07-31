@@ -1,55 +1,53 @@
-(def fred (atom {:cuddle-hunger-level 0
+(ns code
+  (:require [clojure.string]
+            [clojure.java.io]))
+
+(def fred (atom {:cuddle-hunger-level  0
                  :percent-deteriorated 0}))
-@fred
-; => {:cuddle-hunger-level 0, :percent-deteriorated 0}
+
+@fred ; {:cuddle-hunger-level 0, :percent-deteriorated 0}
 
 (let [zombie-state @fred]
-  (if (>= (:percent-deteriorated zombie-state) 50)
+  (when (>= (:percent-deteriorated zombie-state) 50)
     (future (println (:percent-deteriorated zombie-state)))))
 
 (swap! fred
        (fn [current-state]
          (merge-with + current-state {:cuddle-hunger-level 1})))
-; => {:cuddle-hunger-level 1, :percent-deteriorated 0}
+; {:cuddle-hunger-level 1, :percent-deteriorated 0}
 
 @fred
-; => {:cuddle-hunger-level 1, :percent-deteriorated 0}
+; {:cuddle-hunger-level 1, :percent-deteriorated 0}
 
 (swap! fred
        (fn [current-state]
          (merge-with + current-state {:cuddle-hunger-level 1
                                       :percent-deteriorated 1})))
-; => {:cuddle-hunger-level 2, :percent-deteriorated 1}
+; {:cuddle-hunger-level 2, :percent-deteriorated 1}
 
 (defn increase-cuddle-hunger-level
   [zombie-state increase-by]
   (merge-with + zombie-state {:cuddle-hunger-level increase-by}))
 
-(increase-cuddle-hunger-level @fred 10)
-; => {:cuddle-hunger-level 12, :percent-deteriorated 1}
+(increase-cuddle-hunger-level @fred 10) ; {:cuddle-hunger-level 12, :percent-deteriorated 1}
 
-(swap! fred increase-cuddle-hunger-level 10)
-; => {:cuddle-hunger-level 12, :percent-deteriorated 1}
+(swap! fred increase-cuddle-hunger-level 10) ; {:cuddle-hunger-level 12, :percent-deteriorated 1}
 
-@fred
-; => {:cuddle-hunger-level 12, :percent-deteriorated 1}
+@fred ; {:cuddle-hunger-level 12, :percent-deteriorated 1}
 
-(update-in {:a {:b 3}} [:a :b] inc)
-; => {:a {:b 4}}
-
-(update-in {:a {:b 3}} [:a :b] + 10)
-; => {:a {:b 13}}
+(update-in {:a {:b 3}} [:a :b] inc)  ; {:a {:b 4}}
+(update-in {:a {:b 3}} [:a :b] + 10) ; {:a {:b 13}}
 
 (swap! fred update-in [:cuddle-hunger-level] + 10)
-; => {:cuddle-hunger-level 22, :percent-deteriorated 1}
+; {:cuddle-hunger-level 22, :percent-deteriorated 1}
 
 (let [num (atom 1)
       s1 @num]
   (swap! num inc)
   (println "State 1:" s1)
   (println "Current state:" @num))
-; => State 1: 1
-; => Current state: 2
+; State 1: 1
+; Current state: 2
 
 (reset! fred {:cuddle-hunger-level 0
               :percent-deteriorated 0})
@@ -60,7 +58,7 @@
      (- 100 (:percent-deteriorated zombie))))
 
 (defn shuffle-alert
-  [key watched old-state new-state]
+  [key _watched _old-state new-state]
   (let [sph (shuffle-speed new-state)]
     (if (> sph 5000)
       (do
@@ -77,15 +75,15 @@
               :percent-deteriorated 2})
 (add-watch fred :fred-shuffle-alert shuffle-alert)
 (swap! fred update-in [:percent-deteriorated] + 1)
-; => All's well with  :fred-shuffle-alert
-; => Cuddle hunger:  22
-; => Percent deteriorated:  3
-; => SPH:  2134
+; All's well with  :fred-shuffle-alert
+; Cuddle hunger:  22
+; Percent deteriorated:  3
+; SPH:  2134
 
 (swap! fred update-in [:cuddle-hunger-level] + 30)
-; => Run, you fool!
-; => The zombie's SPH is now 5044
-; => This message brought to your courtesy of :fred-shuffle-alert
+; Run, you fool!
+; The zombie's SPH is now 5044
+; This message brought to your courtesy of :fred-shuffle-alert
 
 (defn percent-deteriorated-validator
   [{:keys [percent-deteriorated]}]
@@ -104,6 +102,7 @@
   (or (and (>= percent-deteriorated 0)
            (<= percent-deteriorated 100))
       (throw (IllegalStateException. "That's not mathy!"))))
+
 (def bobby
   (atom
    {:cuddle-hunger-level 0 :percent-deteriorated 0}
@@ -132,18 +131,18 @@
                  :socks (set (map #(sock-count % 2) sock-varieties))}))
 
 (:socks @dryer)
-; => #{{:variety "passive-aggressive", :count 2} {:variety "power", :count 2}
-; =>   {:variety "athletic", :count 2} {:variety "business", :count 2}
-; =>   {:variety "argyle", :count 2} {:variety "horsehair", :count 2}
-; =>   {:variety "gollumed", :count 2} {:variety "darned", :count 2}
-; =>   {:variety "polka-dotted", :count 2} {:variety "wool", :count 2}
-; =>   {:variety "mulleted", :count 2} {:variety "striped", :count 2}
-; =>   {:variety "invisible", :count 2}}
+; #{{:variety "passive-aggressive", :count 2} {:variety "power", :count 2}
+;   {:variety "athletic", :count 2} {:variety "business", :count 2}
+;   {:variety "argyle", :count 2} {:variety "horsehair", :count 2}
+;   {:variety "gollumed", :count 2} {:variety "darned", :count 2}
+;   {:variety "polka-dotted", :count 2} {:variety "wool", :count 2}
+;   {:variety "mulleted", :count 2} {:variety "striped", :count 2}
+;   {:variety "invisible", :count 2}}
 
 (defn steal-sock
   [gnome dryer]
   (dosync
-   (when-let [pair (some #(if (= (:count %) 2) %) (:socks @dryer))]
+   (when-let [pair (some #(when (= (:count %) 2) %) (:socks @dryer))]
      (let [updated-count (sock-count (:variety pair) 1)]
        (alter gnome update-in [:socks] conj updated-count)
        (alter dryer update-in [:socks] disj pair)
@@ -159,7 +158,6 @@
 
 (similar-socks (first (:socks @sock-gnome)) (:socks @dryer))
 ; => ({:variety "passive-aggressive", :count 1})
-
 
 (def counter (ref 0))
 (future
@@ -178,7 +176,9 @@
     (Thread/sleep sleep-time)
     (println (str thread-name ": " state))
     (update-fn state)))
+
 (def counter (ref 0))
+
 (future (dosync (commute counter (sleep-print-update 100 "Thread A" inc))))
 (future (dosync (commute counter (sleep-print-update 150 "Thread B" inc))))
 
@@ -194,57 +194,50 @@
                       (commute receiver-b conj gift)
                       (commute giver disj gift)))))
 
-@receiver-a
-; => #{1}
-
-@receiver-b
-; => #{1}
-
-@giver
-; => #{}
-
+@receiver-a ; #{1}
+@receiver-b ; #{1}
+@giver      ; #{}
 
 (def ^:dynamic *notification-address* "dobby@elf.org")
 
 (binding [*notification-address* "test@elf.org"]
   *notification-address*)
-; => "test@elf.org"
+; "test@elf.org"
 
 (binding [*notification-address* "tester-1@elf.org"]
   (println *notification-address*)
   (binding [*notification-address* "tester-2@elf.org"]
     (println *notification-address*))
   (println *notification-address*))
-; => tester-1@elf.org
-; => tester-2@elf.org
-; => tester-1@elf.org
+; tester-1@elf.org
+; tester-2@elf.org
+; tester-1@elf.org
 
 (defn notify
   [message]
   (str "TO: " *notification-address* "\n"
        "MESSAGE: " message))
 (notify "I fell.")
-; => "TO: dobby@elf.org\nMESSAGE: I fell."
+; "TO: dobby@elf.org\nMESSAGE: I fell."
 
 (binding [*notification-address* "test@elf.org"]
   (notify "test!"))
-; => "TO: test@elf.org\nMESSAGE: test!"
+; "TO: test@elf.org\nMESSAGE: test!"
 
 (binding [*out* (clojure.java.io/writer "print-output")]
   (println "A man who carries a cat by the tail learns 
       something he can learn in no other way.
       -- Mark Twain"))
 (slurp "print-output")
-; => A man who carries a cat by the tail learns
-; => something he can learn in no other way.
-; => -- Mark Twain
+; A man who carries a cat by the tail learns
+; something he can learn in no other way.
+; -- Mark Twain
 
-(println ["Print" "all" "the" "things!"])
-; => [Print all the things!]
+(println ["Print" "all" "the" "things!"]) ; [Print all the things!]
 
 (binding [*print-length* 1]
   (println ["Print" "just" "one!"]))
-; => [Print ...]
+; [Print ...]
 
 (def ^:dynamic *troll-thought* nil)
 (defn troll-riddle
@@ -260,14 +253,13 @@
   (println (troll-riddle 2))
   (println "SUCCULENT HUMAN: Oooooh! The answer was" *troll-thought*))
 
-; => TROLL: Time to eat you, succulent human!
-; => SUCCULENT HUMAN: Oooooh! The answer was man meat
+; TROLL: Time to eat you, succulent human!
+; SUCCULENT HUMAN: Oooooh! The answer was man meat
 
-*troll-thought*
-; => nil
+*troll-thought* ; nil
 
 (.write *out* "prints to repl")
-; => prints to repl
+; prints to repl
 
 (.start (Thread. #(.write *out* "prints to standard out")))
 
@@ -282,7 +274,7 @@
 
 (alter-var-root #'power-source (fn [_] "7-eleven parking lot"))
 power-source
-; => "7-eleven parking lot"
+; "7-eleven parking lot"
 
 (with-redefs [*out* *out*]
   (doto (Thread. #(println "with redefs allows me to show up in the REPL"))
@@ -293,10 +285,10 @@ power-source
   []
   1)
 (take 5 (repeatedly always-1))
-; => (1 1 1 1 1)
+; (1 1 1 1 1)
 
 (take 5 (repeatedly (partial rand-int 10)))
-; => (1 5 0 3 4)
+; (1 5 0 3 4)
 
 (def alphabet-length 26)
 
@@ -315,27 +307,26 @@ power-source
 (def orc-names (random-string-list 3000 7000))
 
 (time (dorun (map clojure.string/lower-case orc-names)))
-; => "Elapsed time: 270.182 msecs"
+; "Elapsed time: 270.182 msecs"
 
 (time (dorun (pmap clojure.string/lower-case orc-names)))
-; => "Elapsed time: 147.562 msecs"
-
+; "Elapsed time: 147.562 msecs"
 
 (def orc-name-abbrevs (random-string-list 20000 300))
 (time (dorun (map clojure.string/lower-case orc-name-abbrevs)))
-; => "Elapsed time: 78.23 msecs"
+; "Elapsed time: 78.23 msecs"
 (time (dorun (pmap clojure.string/lower-case orc-name-abbrevs)))
-; => "Elapsed time: 124.727 msecs"
+; "Elapsed time: 124.727 msecs"
 
 (def numbers [1 2 3 4 5 6 7 8 9 10])
 (partition-all 3 numbers)
-; => ((1 2 3) (4 5 6) (7 8 9) (10))
+; ((1 2 3) (4 5 6) (7 8 9) (10))
 
 (pmap inc numbers)
 
 (pmap (fn [number-group] (doall (map inc number-group)))
       (partition-all 3 numbers))
-; => ((2 3 4) (5 6 7) (8 9 10) (11))
+; ((2 3 4) (5 6 7) (8 9 10) (11))
 
 (apply concat
        (pmap (fn [number-group] (doall (map inc number-group)))
@@ -346,7 +337,7 @@ power-source
   (apply concat
          (pmap (fn [name] (doall (map clojure.string/lower-case name)))
                (partition-all 1000 orc-name-abbrevs)))))
-; => "Elapsed time: 44.677 msecs"
+; "Elapsed time: 44.677 msecs"
 
 (defn ppmap
   "Partitioned pmap, for grouping map ops together to make parallel
@@ -360,4 +351,4 @@ power-source
 ; => "Elapsed time: 44.902 msecs"
 
 (quote-word-count 5)
-; => {"ochre" 8, "smoothie" 2}
+; {"ochre" 8, "smoothie" 2}
