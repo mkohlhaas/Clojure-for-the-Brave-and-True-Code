@@ -1,6 +1,14 @@
+;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Clojure Metaphysics: Atoms, Refs, Vars, and Cuddle Zombies
+;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (ns code
   (:require [clojure.string]
             [clojure.java.io]))
+
+;; ;;;;;
+;; Atoms
+;; ;;;;;
 
 (def fred (atom {:cuddle-hunger-level  0
                  :percent-deteriorated 0}))
@@ -8,8 +16,9 @@
 @fred ; {:cuddle-hunger-level 0, :percent-deteriorated 0}
 
 (let [zombie-state @fred]
-  (when (>= (:percent-deteriorated zombie-state) 50)
+  (when (<= (:percent-deteriorated zombie-state) 50)
     (future (println (:percent-deteriorated zombie-state)))))
+; (out) 0
 
 (swap! fred
        (fn [current-state]
@@ -29,11 +38,16 @@
   [zombie-state increase-by]
   (merge-with + zombie-state {:cuddle-hunger-level increase-by}))
 
-(increase-cuddle-hunger-level @fred 10) ; {:cuddle-hunger-level 12, :percent-deteriorated 1}
+(increase-cuddle-hunger-level @fred 10)
+; {:cuddle-hunger-level 12, :percent-deteriorated 1}
 
-(swap! fred increase-cuddle-hunger-level 10) ; {:cuddle-hunger-level 12, :percent-deteriorated 1}
+@fred ; {:cuddle-hunger-level 2, :percent-deteriorated 1}
 
-@fred ; {:cuddle-hunger-level 12, :percent-deteriorated 1}
+(swap! fred increase-cuddle-hunger-level 10)
+; {:cuddle-hunger-level 12, :percent-deteriorated 1}
+
+@fred
+; {:cuddle-hunger-level 12, :percent-deteriorated 1}
 
 (update-in {:a {:b 3}} [:a :b] inc)  ; {:a {:b 4}}
 (update-in {:a {:b 3}} [:a :b] + 10) ; {:a {:b 13}}
@@ -41,50 +55,86 @@
 (swap! fred update-in [:cuddle-hunger-level] + 10)
 ; {:cuddle-hunger-level 22, :percent-deteriorated 1}
 
+@fred ; {:cuddle-hunger-level 22, :percent-deteriorated 1}
+
 (let [num (atom 1)
       s1 @num]
   (swap! num inc)
-  (println "State 1:" s1)
+  (println "Old state:    " s1)
   (println "Current state:" @num))
-; State 1: 1
-; Current state: 2
+; (out) Old state:     1
+; (out) Current state: 2
 
 (reset! fred {:cuddle-hunger-level 0
               :percent-deteriorated 0})
+; {:cuddle-hunger-level 0, :percent-deteriorated 0}
+
+@fred
+; {:cuddle-hunger-level 0, :percent-deteriorated 0}
+
+;; ;;;;;;;;;;;;;;;;;;;;;;
+;; Watches and Validators
+;; ;;;;;;;;;;;;;;;;;;;;;;
+
+;; ;;;;;;;
+;; Watches
+;; ;;;;;;;
 
 (defn shuffle-speed
   [zombie]
   (* (:cuddle-hunger-level zombie)
      (- 100 (:percent-deteriorated zombie))))
 
+;; watch function (see arguments)
 (defn shuffle-alert
   [key _watched _old-state new-state]
   (let [sph (shuffle-speed new-state)]
     (if (> sph 5000)
       (do
         (println "Run, you fool!")
-        (println "The zombie's SPH is now " sph)
-        (println "This message brought to your courtesy of " key))
+        (println "The zombie's SPH is now" sph)
+        (println "This message brought to your courtesy of" key))
       (do
-        (println "All's well with " key)
-        (println "Cuddle hunger: " (:cuddle-hunger-level new-state))
-        (println "Percent deteriorated: " (:percent-deteriorated new-state))
-        (println "SPH: " sph)))))
+        (println "All's well with" key)
+        (println "Cuddle hunger:" (:cuddle-hunger-level new-state))
+        (println "Percent deteriorated:" (:percent-deteriorated new-state))
+        (println "SPH:" sph)))))
 
 (reset! fred {:cuddle-hunger-level 22
               :percent-deteriorated 2})
+; {:cuddle-hunger-level 22, :percent-deteriorated 2}
+
 (add-watch fred :fred-shuffle-alert shuffle-alert)
+
 (swap! fred update-in [:percent-deteriorated] + 1)
-; All's well with  :fred-shuffle-alert
-; Cuddle hunger:  22
-; Percent deteriorated:  3
-; SPH:  2134
+; (out) All's well with :fred-shuffle-alert
+; (out) Cuddle hunger: 22
+; (out) Percent deteriorated: 3
+; (out) SPH: 2134
+
+@fred ; {:cuddle-hunger-level 22, :percent-deteriorated 3}
 
 (swap! fred update-in [:cuddle-hunger-level] + 30)
-; Run, you fool!
-; The zombie's SPH is now 5044
-; This message brought to your courtesy of :fred-shuffle-alert
+; {:cuddle-hunger-level 52, :percent-deteriorated 3}
+; (out) Run, you fool!
+; (out) The zombie's SPH is now 5044
+; (out) This message brought to your courtesy of :fred-shuffle-alert
 
+;; ;;;;;;;;;;
+;; Validators
+;; ;;;;;;;;;;
+
+(def my-atom (atom 0 :validator (fn [new-number] (println new-number) (even? new-number))))
+
+@my-atom
+
+(swap! my-atom inc)
+; (err) java.lang.IllegalStateException
+
+(swap! my-atom (partial + 2)) ; 2
+; (out) 2
+
+;; validator returning a boolean
 (defn percent-deteriorated-validator
   [{:keys [percent-deteriorated]}]
   (and (>= percent-deteriorated 0)
@@ -92,23 +142,42 @@
 
 (def bobby
   (atom
-   {:cuddle-hunger-level 0 :percent-deteriorated 0}
+   {:cuddle-hunger-level  0
+    :percent-deteriorated 0}
    :validator percent-deteriorated-validator))
-(swap! bobby update-in [:percent-deteriorated] + 200)
-; This throws "Invalid reference state"
 
-(defn percent-deteriorated-validator
+@bobby
+
+(swap! bobby update-in [:percent-deteriorated] + 20)
+; {:cuddle-hunger-level 0, :percent-deteriorated 20}
+
+(swap! bobby update-in [:percent-deteriorated] + 200)
+; (err) java.lang.IllegalStateException
+
+@bobby ; {:cuddle-hunger-level 0, :percent-deteriorated 20}
+
+;; validator throwing an exception in error case
+(defn percent-deteriorated-validator1
   [{:keys [percent-deteriorated]}]
   (or (and (>= percent-deteriorated 0)
            (<= percent-deteriorated 100))
       (throw (IllegalStateException. "That's not mathy!"))))
 
-(def bobby
+(def bobby1
   (atom
-   {:cuddle-hunger-level 0 :percent-deteriorated 0}
-   :validator percent-deteriorated-validator))
-(swap! bobby update-in [:percent-deteriorated] + 200)
-; This throws "IllegalStateException That's not mathy!"
+   {:cuddle-hunger-level  0
+    :percent-deteriorated 0}
+   :validator percent-deteriorated-validator1))
+
+(swap! bobby1 update-in [:percent-deteriorated] + 20)
+; {:cuddle-hunger-level 0, :percent-deteriorated 20}
+
+(swap! bobby1 update-in [:percent-deteriorated] + 200)
+; (err) java.lang.IllegalStateException: That's not mathy! 
+
+;; ;;;;;;;;;;;;;;;;;;;;;;;
+;; Modeling Sock Transfers
+;; ;;;;;;;;;;;;;;;;;;;;;;;
 
 (def sock-varieties
   #{"darned" "argyle" "wool" "horsehair" "mulleted"
@@ -127,16 +196,40 @@
    :socks #{}})
 
 (def sock-gnome (ref (generate-sock-gnome "Barumpharumph")))
+
 (def dryer (ref {:name "LG 1337"
                  :socks (set (map #(sock-count % 2) sock-varieties))}))
 
+@dryer
+; {:name "LG 1337",
+;  :socks
+;  #{{:variety "gollumed", :count 2}
+;    {:variety "striped", :count 2}
+;    {:variety "wool", :count 2}
+;    {:variety "passive-aggressive", :count 2}
+;    {:variety "argyle", :count 2}
+;    {:variety "business", :count 2}
+;    {:variety "darned", :count 2}
+;    {:variety "polka-dotted", :count 2}
+;    {:variety "horsehair", :count 2}
+;    {:variety "power", :count 2}
+;    {:variety "athletic", :count 2}
+;    {:variety "mulleted", :count 2}
+;    {:variety "invisible", :count 2}}}
+
 (:socks @dryer)
-; #{{:variety "passive-aggressive", :count 2} {:variety "power", :count 2}
-;   {:variety "athletic", :count 2} {:variety "business", :count 2}
-;   {:variety "argyle", :count 2} {:variety "horsehair", :count 2}
-;   {:variety "gollumed", :count 2} {:variety "darned", :count 2}
-;   {:variety "polka-dotted", :count 2} {:variety "wool", :count 2}
-;   {:variety "mulleted", :count 2} {:variety "striped", :count 2}
+; #{{:variety "gollumed", :count 2}
+;   {:variety "striped", :count 2}
+;   {:variety "wool", :count 2}
+;   {:variety "passive-aggressive", :count 2}
+;   {:variety "argyle", :count 2}
+;   {:variety "business", :count 2}
+;   {:variety "darned", :count 2}
+;   {:variety "polka-dotted", :count 2}
+;   {:variety "horsehair", :count 2}
+;   {:variety "power", :count 2}
+;   {:variety "athletic", :count 2}
+;   {:variety "mulleted", :count 2}
 ;   {:variety "invisible", :count 2}}
 
 (defn steal-sock
@@ -147,18 +240,34 @@
        (alter gnome update-in [:socks] conj updated-count)
        (alter dryer update-in [:socks] disj pair)
        (alter dryer update-in [:socks] conj updated-count)))))
-(steal-sock sock-gnome dryer)
 
-(:socks @sock-gnome)
-; => #{{:variety "passive-aggressive", :count 1}}
+(steal-sock sock-gnome dryer)
+; {:name "LG 1337",
+;  :socks
+;  #{{:variety "striped", :count 2}
+;    {:variety "wool", :count 2}
+;    {:variety "passive-aggressive", :count 2}
+;    {:variety "argyle", :count 2}
+;    {:variety "business", :count 2}
+;    {:variety "darned", :count 2}
+;    {:variety "polka-dotted", :count 2}
+;    {:variety "horsehair", :count 2}
+;    {:variety "power", :count 2}
+;    {:variety "athletic", :count 2}
+;    {:variety "gollumed", :count 1}    ; one sock removed
+;    {:variety "mulleted", :count 2}
+;    {:variety "invisible", :count 2}}}
+
+(:socks @sock-gnome) ; #{{:variety "gollumed", :count 1}} ; sock added
 
 (defn similar-socks
   [target-sock sock-set]
   (filter #(= (:variety %) (:variety target-sock)) sock-set))
 
 (similar-socks (first (:socks @sock-gnome)) (:socks @dryer))
-; => ({:variety "passive-aggressive", :count 1})
+; ({:variety "gollumed", :count 2} {:variety "gollumed", :count 1})
 
+;; in-transaction state
 (def counter (ref 0))
 (future
   (dosync
@@ -169,6 +278,10 @@
    (println @counter)))
 (Thread/sleep 250)
 (println @counter)
+
+;; ;;;;;;;
+;; commute
+;; ;;;;;;;
 
 (defn sleep-print-update
   [sleep-time thread-name update-fn]
@@ -182,9 +295,19 @@
 (future (dosync (commute counter (sleep-print-update 100 "Thread A" inc))))
 (future (dosync (commute counter (sleep-print-update 150 "Thread B" inc))))
 
+;; example of unsafe commuting
 (def receiver-a (ref #{}))
 (def receiver-b (ref #{}))
 (def giver (ref #{1}))
+(do (future (dosync (let [gift (first @giver)]
+                      (Thread/sleep 10)
+                      (alter receiver-a conj gift)
+                      (alter giver disj gift))))
+    (future (dosync (let [gift (first @giver)]
+                      (Thread/sleep 50)
+                      (alter receiver-b conj gift)
+                      (alter giver disj gift)))))
+
 (do (future (dosync (let [gift (first @giver)]
                       (Thread/sleep 10)
                       (commute receiver-a conj gift)
@@ -197,6 +320,14 @@
 @receiver-a ; #{1}
 @receiver-b ; #{1}
 @giver      ; #{}
+
+;; ;;;;
+;; Vars
+;; ;;;;
+
+;; ;;;;;;;;;;;;;;;
+;; Dynamic Binding
+;; ;;;;;;;;;;;;;;;
 
 (def ^:dynamic *notification-address* "dobby@elf.org")
 
