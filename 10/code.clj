@@ -331,51 +331,71 @@
 
 (def ^:dynamic *notification-address* "dobby@elf.org")
 
+*notification-address* ; "dobby@elf.org"
+
+; change temporarily
 (binding [*notification-address* "test@elf.org"]
   *notification-address*)
 ; "test@elf.org"
 
+*notification-address* ; "dobby@elf.org"
+
+; stack bindings
 (binding [*notification-address* "tester-1@elf.org"]
   (println *notification-address*)
   (binding [*notification-address* "tester-2@elf.org"]
     (println *notification-address*))
-  (println *notification-address*))
-; tester-1@elf.org
-; tester-2@elf.org
-; tester-1@elf.org
+  (println *notification-address*)) ; nil
+; (out) tester-1@elf.org
+; (out) tester-2@elf.org
+; (out) tester-1@elf.org
+
+;; ;;;;;;;;;;;;;;;;
+;; Dynamic Var Uses
+;; ;;;;;;;;;;;;;;;;
 
 (defn notify
   [message]
   (str "TO: " *notification-address* "\n"
        "MESSAGE: " message))
+
 (notify "I fell.")
 ; "TO: dobby@elf.org\nMESSAGE: I fell."
 
 (binding [*notification-address* "test@elf.org"]
-  (notify "test!"))
+  (notify "test!")) ; "TO: test@elf.org\nMESSAGE: test!"
 ; "TO: test@elf.org\nMESSAGE: test!"
 
-(binding [*out* (clojure.java.io/writer "print-output")]
-  (println "A man who carries a cat by the tail learns 
-      something he can learn in no other way.
-      -- Mark Twain"))
-(slurp "print-output")
+; Clojure comes with a ton of built-in dynamic vars, e.g. *out*
+(binding [*out* (clojure.java.io/writer "print-output.txt")]
+  (println "A man who carries a cat by the tail learns")
+  (println "something he can learn in no other way.")
+  (println "-- Mark Twain"))
+
+(slurp "print-output.txt")
 ; A man who carries a cat by the tail learns
 ; something he can learn in no other way.
 ; -- Mark Twain
 
-(println ["Print" "all" "the" "things!"]) ; [Print all the things!]
+; another build-in dynamic var, *print-length*.
 
+(println ["Print" "all" "the" "things!"])
+; (out) [Print all the things!]
+
+; another build-in dynamic var
 (binding [*print-length* 1]
   (println ["Print" "just" "one!"]))
-; [Print ...]
+; (out) [Print ...]
 
 (def ^:dynamic *troll-thought* nil)
+
 (defn troll-riddle
   [your-answer]
   (let [number "man meat"]
-    (when (thread-bound? #'*troll-thought*)
-      (set! *troll-thought* number))
+    ;; thread-bound? takes the var itself as an argument, not the value it refers to
+    (when (thread-bound? #'*troll-thought*) ; thread-local binding ?
+      (println "setting *troll-thought*")
+      (set! *troll-thought* number)) ; set! will succeed if thread-local binding
     (if (= number your-answer)
       "TROLL: You can cross the bridge!"
       "TROLL: Time to eat you, succulent human!")))
@@ -383,14 +403,22 @@
 (binding [*troll-thought* nil]
   (println (troll-riddle 2))
   (println "SUCCULENT HUMAN: Oooooh! The answer was" *troll-thought*))
+; (out) setting *troll-thought*
+; (out) TROLL: Time to eat you, succulent human!
+; (out) SUCCULENT HUMAN: Oooooh! The answer was man meat
 
-; TROLL: Time to eat you, succulent human!
-; SUCCULENT HUMAN: Oooooh! The answer was man meat
-
+;; var returns to its original value outside of binding
 *troll-thought* ; nil
 
+;; ;;;;;;;;;;;;;;;;;;
+;; Per-Thread Binding
+;; ;;;;;;;;;;;;;;;;;;
+
+;; If you access a dynamically bound var from within a manually created thread,
+;; the var will evaluate to the original value.
+
 (.write *out* "prints to repl")
-; prints to repl
+; (out) prints to repl
 
 (.start (Thread. #(.write *out* "prints to standard out")))
 
@@ -401,59 +429,92 @@
 
 (.start (Thread. (bound-fn [] (.write *out* "prints to repl from thread"))))
 
+;; ;;;;;;;;;;;;;;;;;;;;;
+;; Altering the Var Root
+;; ;;;;;;;;;;;;;;;;;;;;;
+
+; the initial value that you supply is its root
 (def power-source "hair")
 
-(alter-var-root #'power-source (fn [_] "7-eleven parking lot"))
+(alter-var-root #'power-source (fn [_previous_value] "7-eleven parking lot"))
+
 power-source
 ; "7-eleven parking lot"
 
+; temporarily alter a var’s root, seen in all threads
 (with-redefs [*out* *out*]
   (doto (Thread. #(println "with redefs allows me to show up in the REPL"))
     .start
     .join))
+; (out) with redefs allows me to show up in the REPL
+
+;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Stateless Concurrency and Parallelism with pmap
+;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn always-1
   []
   1)
+
 (take 5 (repeatedly always-1))
 ; (1 1 1 1 1)
+
+(take 5 (repeatedly rand))
+; (0.3637898392804828
+;  0.2762018646831279
+;  0.02931888915454972
+;  0.17067728009184058
+;  0.7784136009137743)
 
 (take 5 (repeatedly (partial rand-int 10)))
 ; (1 5 0 3 4)
 
 (def alphabet-length 26)
 
-;; Vector of chars, A-Z
 (def letters (mapv (comp str char (partial + 65)) (range alphabet-length)))
+; ["A" "B" "C" "D" "E" "F" "G" "H" "I" "J" "K" "L" "M" "N" "O" "P" "Q" "R" "S" "T" "U" "V" "W" "X" "Y" "Z"]
 
 (defn random-string
   "Returns a random string of specified length"
   [length]
   (apply str (take length (repeatedly #(rand-nth letters)))))
 
+(random-string 10) ; "DVGMVNOLWY"
+
 (defn random-string-list
   [list-length string-length]
   (doall (take list-length (repeatedly (partial random-string string-length)))))
 
-(def orc-names (random-string-list 3000 7000))
+(random-string-list 3 10) ; ("OZKRBJWMJM" "XLJLMUVRBX" "CZLDLWEGMM")
 
-(time (dorun (map clojure.string/lower-case orc-names)))
+(def orc-names (random-string-list 3000 7000)) ; #'code/orc-names
+
+; pmap faster
+(time (dorun (map clojure.string/lower-case orc-names))) ; nil
+; (out) "Elapsed time: 50.645672 msecs"
 ; "Elapsed time: 270.182 msecs"
 
 (time (dorun (pmap clojure.string/lower-case orc-names)))
+; (out) "Elapsed time: 41.374177 msecs"
 ; "Elapsed time: 147.562 msecs"
 
 (def orc-name-abbrevs (random-string-list 20000 300))
+
+; pmap slower
 (time (dorun (map clojure.string/lower-case orc-name-abbrevs)))
+; (out) "Elapsed time: 18.429014 msecs"
 ; "Elapsed time: 78.23 msecs"
+
 (time (dorun (pmap clojure.string/lower-case orc-name-abbrevs)))
+; (out) "Elapsed time: 73.985266 msecs"
 ; "Elapsed time: 124.727 msecs"
 
 (def numbers [1 2 3 4 5 6 7 8 9 10])
+
 (partition-all 3 numbers)
 ; ((1 2 3) (4 5 6) (7 8 9) (10))
 
-(pmap inc numbers)
+(pmap inc numbers) ; (2 3 4 5 6 7 8 9 10 11)
 
 (pmap (fn [number-group] (doall (map inc number-group)))
       (partition-all 3 numbers))
@@ -462,24 +523,24 @@ power-source
 (apply concat
        (pmap (fn [number-group] (doall (map inc number-group)))
              (partition-all 3 numbers)))
+; (2 3 4 5 6 7 8 9 10 11)
 
 (time
  (dorun
   (apply concat
          (pmap (fn [name] (doall (map clojure.string/lower-case name)))
                (partition-all 1000 orc-name-abbrevs)))))
+; (out) "Elapsed time: 42.478763 msecs"
 ; "Elapsed time: 44.677 msecs"
 
 (defn ppmap
-  "Partitioned pmap, for grouping map ops together to make parallel
-        overhead worthwhile"
+  "Partitioned pmap, for grouping map ops together to make parallel overhead worthwhile"
   [grain-size f & colls]
   (apply concat
          (apply pmap
                 (fn [& pgroups] (doall (apply map f pgroups)))
                 (map (partial partition-all grain-size) colls))))
-(time (dorun (ppmap 1000 clojure.string/lower-case orc-name-abbrevs)))
-; => "Elapsed time: 44.902 msecs"
 
-(quote-word-count 5)
-; {"ochre" 8, "smoothie" 2}
+(time (dorun (ppmap 1000 clojure.string/lower-case orc-name-abbrevs)))
+; (out) "Elapsed time: 86.06846 msecs"
+; => "Elapsed time: 44.902 msecs"
