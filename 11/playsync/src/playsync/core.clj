@@ -1,11 +1,12 @@
 (ns playsync.core
-  (:require [clojure.core.async
+  (:require [clojure.string :as str]
+            [clojure.core.async
              :as a
-             :refer [>! <! >!! <!! go chan buffer close! thread
-                     alts! alts!! timeout]]))
+             :refer [>! <! >!! go chan close!]]))
 
 (def echo-chan (chan))
 (go (println (<! echo-chan)))
+
 (>!! echo-chan "ketchup")
 
 (defn hot-dog-machine
@@ -37,7 +38,6 @@
   (go (Thread/sleep (rand 100))
       (>! c headshot)))
 
-
 (defn append-to-file
   "Write a string to the end of a file"
   [filename s]
@@ -57,18 +57,18 @@
   [filename num-quotes]
   (let [c (chan)]
     (go (while true (append-to-file filename (<! c))))
-    (dotimes [n num-quotes] (go (>! c (random-quote))))))
+    (dotimes [_n num-quotes] (go (>! c (random-quote))))))
 
 (defn upper-caser
   [in]
   (let [out (chan)]
-    (go (while true (>! out (clojure.string/upper-case (<! in)))))
+    (go (while true (>! out (str/upper-case (<! in)))))
     out))
 
 (defn reverser
   [in]
   (let [out (chan)]
-    (go (while true (>! out (clojure.string/reverse (<! in)))))
+    (go (while true (>! out (str/reverse (<! in)))))
     out))
 
 (defn printer

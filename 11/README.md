@@ -7,3 +7,5 @@ project is a little funky because it's not really a project. It just
 makes it more convenient to use core.async functions, and it does this
 by putting the functions in namespace that refers the core.async
 functions.
+
+[This walkthrough introduces the core concepts of core.async.](https://github.com/clojure/core.async/blob/master/examples/walkthrough.clj)
