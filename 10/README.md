@@ -5,10 +5,6 @@
 - Atoms
 
   - compare-and-set semantics
-  - `atom`
-  - `swap!`
-  - `reset!`
-  - `@`
   - dereferencing an atom (or any other reference type) will never block
   - Summary: `atom`, `swap!`, `reset!`, `@`
 
@@ -42,3 +38,13 @@
   - Summary: `ref`, `dosync`, `alter`, `commute`, `@`
 
 - Vars
+
+  - Created with `^:dynamic` and earmuffs `*`
+    - (def `^:dynamic` `*notification-address*` "dobby@elf.org")
+  - Change temporarily with `binding`.
+  - Change with `set!`
+  - `#'x` is reader macro for (var x)
+  - `alter-var-root`
+  - temporarily alter a var’s root `with-redefs`
+    - changes will be visible in all threads
+  - Summary: `binding`, `set!`, `alter-var-root`, `with-redefs`, `#'`
